@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/grpc/backend/proto;pb";
+
+import "google/protobuf/empty.proto";
+
+service UserService {
+  rpc GetAllUsers (google.protobuf.Empty) returns (UserList);
+}
+
+message Empty {}
+
+message User {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+}
+
+message UserList {
+  repeated User users = 1;
+}
