@@ -8,6 +8,8 @@ import (
 	pb "backend/proto/github.com/grpc/backend/proto"
 	"context"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -34,7 +36,7 @@ func (h *TodoHandler) GetAllTodos(ctx context.Context, req *emptypb.Empty) (*pb.
 	todos, err := h.todoUsecase.GetAllTodos()
 	if err != nil {
 		h.logger.ErrorLog.Printf("Failed to get todos: %v", err)
-		h.logger.InfoLog.Printf("GetUser duration: %v", h.timer.GetDuration())
+		h.logger.PrintDuration("GetAllTodos", h.timer.GetDuration())
 		return nil, err
 	}
 
@@ -51,7 +53,7 @@ func (h *TodoHandler) GetAllTodos(ctx context.Context, req *emptypb.Empty) (*pb.
 	}
 
 	h.logger.InfoLog.Printf("GetTodo success: %v todos", len(pbTodos))
-	h.logger.InfoLog.Printf("GetTodo duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("GetAllTodos", h.timer.GetDuration())
 	return &pb.TodoList{Todos: pbTodos}, nil
 }
 
@@ -63,9 +65,16 @@ func (h *TodoHandler) GetTodoById(ctx context.Context, req *pb.GetTodoByIdReques
 	// Todoを取得する(usecase層)
 	todo, err := h.todoUsecase.GetTodoById(req.Id)
 	if err != nil {
-		h.logger.ErrorLog.Printf("Failed to get todo: %v", err)
-		h.logger.InfoLog.Printf("GetTodoById duration: %v", h.timer.GetDuration())
-		return nil, err
+		switch err.Error() {
+		case "id is empty":
+			h.logger.ErrorLog.Printf("Failed to get todo: %v", err)
+			h.logger.PrintDuration("GetTodoById", h.timer.GetDuration())
+			return nil, status.Errorf(codes.InvalidArgument, "id is empty")
+		default:
+			h.logger.ErrorLog.Printf("Failed to get todo: %v", err)
+			h.logger.PrintDuration("GetTodoById", h.timer.GetDuration())
+			return nil, err
+		}
 	}
 
 	pbTodo := &pb.Todo{
@@ -78,7 +87,7 @@ func (h *TodoHandler) GetTodoById(ctx context.Context, req *pb.GetTodoByIdReques
 	}
 
 	h.logger.InfoLog.Printf("GetTodoById success: %v", pbTodo)
-	h.logger.InfoLog.Printf("GetTodoById duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("GetTodoById", h.timer.GetDuration())
 	return pbTodo, nil
 }
 
@@ -90,9 +99,16 @@ func (h *TodoHandler) GetTodoByUserId(ctx context.Context, req *pb.GetTodoByUser
 	// 特定のユーザーのTodoを取得する(usecase層)
 	todos, err := h.todoUsecase.GetTodoByUserId(req.UserId)
 	if err != nil {
-		h.logger.ErrorLog.Printf("Failed to get todos: %v", err)
-		h.logger.InfoLog.Printf("GetTodoByUserId duration: %v", h.timer.GetDuration())
-		return nil, err
+		switch err.Error() {
+		case "user_id is empty":
+			h.logger.ErrorLog.Printf("Failed to get todos: %v", err)
+			h.logger.PrintDuration("GetTodoByUserId", h.timer.GetDuration())
+			return nil, status.Errorf(codes.InvalidArgument, "user_id is empty")
+		default:
+			h.logger.ErrorLog.Printf("Failed to get todos: %v", err)
+			h.logger.PrintDuration("GetTodoByUserId", h.timer.GetDuration())
+			return nil, err
+		}
 	}
 
 	pbTodos := make([]*pb.Todo, len(todos))
@@ -108,7 +124,7 @@ func (h *TodoHandler) GetTodoByUserId(ctx context.Context, req *pb.GetTodoByUser
 	}
 
 	h.logger.InfoLog.Printf("GetTodoByUserId success: %v todos", len(pbTodos))
-	h.logger.InfoLog.Printf("GetTodoByUserId duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("GetTodoByUserId", h.timer.GetDuration())
 	return &pb.TodoList{Todos: pbTodos}, nil
 }
 
@@ -124,9 +140,20 @@ func (h *TodoHandler) CreateTodo(ctx context.Context, req *pb.CreateTodoRequest)
 	}
 	createdTodo, err := h.todoUsecase.CreateTodo(todo)
 	if err != nil {
-		h.logger.ErrorLog.Printf("Failed to create todo: %v", err)
-		h.logger.InfoLog.Printf("CreateTodo duration: %v", h.timer.GetDuration())
-		return nil, err
+		switch err.Error() {
+		case "description is empty":
+			h.logger.ErrorLog.Printf("Failed to create todo: %v", err)
+			h.logger.PrintDuration("CreateTodo", h.timer.GetDuration())
+			return nil, status.Errorf(codes.InvalidArgument, "description is empty")
+		case "user_id is empty":
+			h.logger.ErrorLog.Printf("Failed to create todo: %v", err)
+			h.logger.PrintDuration("CreateTodo", h.timer.GetDuration())
+			return nil, status.Errorf(codes.InvalidArgument, "user_id is empty")
+		default:
+			h.logger.ErrorLog.Printf("Failed to create todo: %v", err)
+			h.logger.PrintDuration("CreateTodo", h.timer.GetDuration())
+			return nil, err
+		}
 	}
 
 	pbTodo := &pb.Todo{
@@ -139,7 +166,7 @@ func (h *TodoHandler) CreateTodo(ctx context.Context, req *pb.CreateTodoRequest)
 	}
 
 	h.logger.InfoLog.Printf("CreateTodo success: %v", pbTodo)
-	h.logger.InfoLog.Printf("CreateTodo duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("CreateTodo", h.timer.GetDuration())
 	return pbTodo, nil
 }
 
@@ -157,9 +184,24 @@ func (h *TodoHandler) UpdateTodo(ctx context.Context, req *pb.UpdateTodoRequest)
 	}
 	updatedTodo, err := h.todoUsecase.UpdateTodo(todo)
 	if err != nil {
-		h.logger.ErrorLog.Printf("Failed to update todo: %v", err)
-		h.logger.InfoLog.Printf("UpdateTodo duration: %v", h.timer.GetDuration())
-		return nil, err
+		switch err.Error() {
+		case "id is empty":
+			h.logger.ErrorLog.Printf("Failed to update todo: %v", err)
+			h.logger.PrintDuration("UpdateTodo", h.timer.GetDuration())
+			return nil, status.Errorf(codes.InvalidArgument, "id is empty")
+		case "description is empty":
+			h.logger.ErrorLog.Printf("Failed to update todo: %v", err)
+			h.logger.PrintDuration("UpdateTodo", h.timer.GetDuration())
+			return nil, status.Errorf(codes.InvalidArgument, "description is empty")
+		case "user_id is empty":
+			h.logger.ErrorLog.Printf("Failed to update todo: %v", err)
+			h.logger.PrintDuration("UpdateTodo", h.timer.GetDuration())
+			return nil, status.Errorf(codes.InvalidArgument, "user_id is empty")
+		default:
+			h.logger.ErrorLog.Printf("Failed to update todo: %v", err)
+			h.logger.PrintDuration("UpdateTodo", h.timer.GetDuration())
+			return nil, err
+		}
 	}
 
 	pbTodo := &pb.Todo{
@@ -172,7 +214,7 @@ func (h *TodoHandler) UpdateTodo(ctx context.Context, req *pb.UpdateTodoRequest)
 	}
 
 	h.logger.InfoLog.Printf("UpdateTodo success: %v", pbTodo)
-	h.logger.InfoLog.Printf("UpdateTodo duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("UpdateTodo", h.timer.GetDuration())
 	return pbTodo, nil
 }
 
@@ -184,12 +226,19 @@ func (h *TodoHandler) DeleteTodo(ctx context.Context, req *pb.DeleteTodoRequest)
 	// Todoを削除する(usecase層)
 	err := h.todoUsecase.DeleteTodo(req.Id)
 	if err != nil {
-		h.logger.ErrorLog.Printf("Failed to delete todo: %v", err)
-		h.logger.InfoLog.Printf("DeleteTodo duration: %v", h.timer.GetDuration())
-		return nil, err
+		switch err.Error() {
+		case "id is empty":
+			h.logger.ErrorLog.Printf("Failed to delete todo: %v", err)
+			h.logger.PrintDuration("DeleteTodo", h.timer.GetDuration())
+			return nil, status.Errorf(codes.InvalidArgument, "id is empty")
+		default:
+			h.logger.ErrorLog.Printf("Failed to delete todo: %v", err)
+			h.logger.PrintDuration("DeleteTodo", h.timer.GetDuration())
+			return nil, err
+		}
 	}
 
 	h.logger.InfoLog.Println("DeleteTodo success")
-	h.logger.InfoLog.Printf("DeleteTodo duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("DeleteTodo", h.timer.GetDuration())
 	return &emptypb.Empty{}, nil
 }

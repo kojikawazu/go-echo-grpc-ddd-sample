@@ -36,21 +36,22 @@ func NewAuthHandler(l *pkg_logger.AppLogger, ac *config.AppConfig, authUsecase u
 func (h *AuthHandler) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	h.logger.InfoLog.Println("Login called")
 	h.timer.Start()
+
 	// ログイン(usecase層)
 	token, err := h.authUsecase.Login(req.Email, req.Password)
 	if err != nil {
 		switch err.Error() {
 		case "invalid email or password":
 			h.logger.ErrorLog.Printf("Login failed: %v", err)
-			h.logger.InfoLog.Printf("Login duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("Login", h.timer.GetDuration())
 			return nil, status.Errorf(codes.Unauthenticated, "invalid email or password")
 		case "invalid email format":
 			h.logger.ErrorLog.Printf("Login failed: %v", err)
-			h.logger.InfoLog.Printf("Login duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("Login", h.timer.GetDuration())
 			return nil, status.Errorf(codes.InvalidArgument, "invalid email format")
 		default:
 			h.logger.ErrorLog.Printf("Login failed: %v", err)
-			h.logger.InfoLog.Printf("Login duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("Login", h.timer.GetDuration())
 			return nil, status.Errorf(codes.Internal, "failed to login")
 		}
 	}
@@ -59,12 +60,12 @@ func (h *AuthHandler) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Logi
 	tokenString, err := h.GenerateToken(token)
 	if err != nil {
 		h.logger.ErrorLog.Printf("Failed to generate token: %v", err)
-		h.logger.InfoLog.Printf("Login duration: %v", h.timer.GetDuration())
+		h.logger.PrintDuration("Login", h.timer.GetDuration())
 		return nil, err
 	}
 
 	h.logger.InfoLog.Println("Login successful")
-	h.logger.InfoLog.Printf("Login duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("Login", h.timer.GetDuration())
 	return &pb.LoginResponse{Token: tokenString}, nil
 }
 
@@ -83,12 +84,12 @@ func (h *AuthHandler) GenerateToken(id string) (string, error) {
 	tokenString, err := token.SignedString([]byte(h.AppConfig.JWTSecret))
 	if err != nil {
 		h.logger.ErrorLog.Printf("Failed to sign token: %v", err)
-		h.logger.InfoLog.Printf("GenerateToken duration: %v", h.timer.GetDuration())
+		h.logger.PrintDuration("GenerateToken", h.timer.GetDuration())
 		return "", err
 	}
 
 	h.logger.InfoLog.Println("Token generated successfully")
-	h.logger.InfoLog.Printf("GenerateToken duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("GenerateToken", h.timer.GetDuration())
 	return tokenString, nil
 }
 
@@ -105,7 +106,7 @@ func (h *AuthHandler) AuthInterceptor(jwtSecret string, requiredRole string) grp
 		// 認可スキップ対象のメソッド
 		if info.FullMethod == "/pb.AuthService/Login" {
 			h.logger.InfoLog.Println("Login method called")
-			h.logger.InfoLog.Printf("AuthInterceptor duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("AuthInterceptor", h.timer.GetDuration())
 			return handler(ctx, req)
 		}
 
@@ -113,14 +114,14 @@ func (h *AuthHandler) AuthInterceptor(jwtSecret string, requiredRole string) grp
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			h.logger.ErrorLog.Println("Missing metadata")
-			h.logger.InfoLog.Printf("AuthInterceptor duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("AuthInterceptor", h.timer.GetDuration())
 			return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 		}
 
 		authHeaders := md["authorization"]
 		if len(authHeaders) == 0 {
 			h.logger.ErrorLog.Println("Missing authorization header")
-			h.logger.InfoLog.Printf("AuthInterceptor duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("AuthInterceptor", h.timer.GetDuration())
 			return nil, status.Errorf(codes.Unauthenticated, "missing authorization header")
 		}
 
@@ -129,7 +130,7 @@ func (h *AuthHandler) AuthInterceptor(jwtSecret string, requiredRole string) grp
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				h.logger.ErrorLog.Println("Invalid token")
-				h.logger.InfoLog.Printf("AuthInterceptor duration: %v", h.timer.GetDuration())
+				h.logger.PrintDuration("AuthInterceptor", h.timer.GetDuration())
 				return nil, status.Errorf(codes.Unauthenticated, "unexpected signing method")
 			}
 			return []byte(jwtSecret), nil
@@ -137,21 +138,21 @@ func (h *AuthHandler) AuthInterceptor(jwtSecret string, requiredRole string) grp
 
 		if err != nil || !token.Valid {
 			h.logger.ErrorLog.Println("Invalid token")
-			h.logger.InfoLog.Printf("AuthInterceptor duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("AuthInterceptor", h.timer.GetDuration())
 			return nil, status.Errorf(codes.Unauthenticated, "invalid token")
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			h.logger.ErrorLog.Println("Invalid claims")
-			h.logger.InfoLog.Printf("AuthInterceptor duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("AuthInterceptor", h.timer.GetDuration())
 			return nil, status.Errorf(codes.Unauthenticated, "invalid claims")
 		}
 
 		role := claims["role"].(string)
 		if role != requiredRole {
 			h.logger.ErrorLog.Println("Permission denied")
-			h.logger.InfoLog.Printf("AuthInterceptor duration: %v", h.timer.GetDuration())
+			h.logger.PrintDuration("AuthInterceptor", h.timer.GetDuration())
 			return nil, status.Errorf(codes.PermissionDenied, "permission denied")
 		}
 
@@ -159,8 +160,8 @@ func (h *AuthHandler) AuthInterceptor(jwtSecret string, requiredRole string) grp
 		userID := claims["id"].(string)
 		ctx = context.WithValue(ctx, h.AppConfig.UserID, userID)
 
-		h.logger.InfoLog.Printf("AuthInterceptor duration: %v", h.timer.GetDuration())
 		h.logger.InfoLog.Println("AuthInterceptor successful")
+		h.logger.PrintDuration("AuthInterceptor", h.timer.GetDuration())
 		return handler(ctx, req)
 	}
 }
