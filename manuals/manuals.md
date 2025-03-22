@@ -5,9 +5,18 @@
 backend/
 ├── internal/
 │   └── interfaces/
+│       └── auth/
+│       │   ├── auth_handler.go
+│       │   └── auth.proto
+│       └── todo/
+│       │   ├── todo_handler.go
+│       │   └── todo.proto
 │       └── user/
+│           ├── user_handler.go
 │           └── user.proto
-├── proto/
+├── proto/github.com/grpc/backend/proto
+│   ├── auth.pb.go
+│   ├── todo.pb.go
 │   └── user.pb.go
 ```
 
@@ -32,3 +41,5 @@ protoc \
   --go-grpc_out=./proto \
   internal/interfaces/user/user.proto
 ```
+
+- `Makefile` に設定済。`make generate`コマンドで実施可能。

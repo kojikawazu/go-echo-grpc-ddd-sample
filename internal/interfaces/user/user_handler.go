@@ -32,7 +32,7 @@ func (h *UserHandler) GetAllUsers(ctx context.Context, req *emptypb.Empty) (*pb.
 	users, err := h.userUsecase.GetAllUsers()
 	if err != nil {
 		h.logger.ErrorLog.Printf("Failed to get users: %v", err)
-		h.logger.InfoLog.Printf("GetUser duration: %v", h.timer.GetDuration())
+		h.logger.PrintDuration("GetAllUsers", h.timer.GetDuration())
 		return nil, err
 	}
 
@@ -46,6 +46,6 @@ func (h *UserHandler) GetAllUsers(ctx context.Context, req *emptypb.Empty) (*pb.
 	}
 
 	h.logger.InfoLog.Printf("GetUser success: %v users", len(pbUsers))
-	h.logger.InfoLog.Printf("GetUser duration: %v", h.timer.GetDuration())
+	h.logger.PrintDuration("GetAllUsers", h.timer.GetDuration())
 	return &pb.UserList{Users: pbUsers}, nil
 }
